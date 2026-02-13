@@ -1,55 +1,55 @@
-import fs from "fs/promises";
-import path from "path";
+import { put, del } from "@vercel/blob";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-
-export async function ensureUploadDir() {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-}
 
 export async function saveFile(
   buffer: Buffer,
   originalName: string
 ): Promise<{ filePath: string; thumbnailPath: string | null; width: number; height: number }> {
-  await ensureUploadDir();
-
-  const ext = path.extname(originalName).toLowerCase();
+  const ext = originalName.split(".").pop()?.toLowerCase() || "bin";
   const id = nanoid(12);
-  const filename = `${id}${ext}`;
-  const filePath = path.join(UPLOAD_DIR, filename);
+  const filename = `${id}.${ext}`;
 
-  await fs.writeFile(filePath, buffer);
+  const imageExts = ["jpg", "jpeg", "png", "gif", "webp"];
+  const isImage = imageExts.includes(ext);
 
-  const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
-  if (imageExts.includes(ext) && ext !== ".svg") {
+  // Upload original file to Vercel Blob
+  const blob = await put(`uploads/${filename}`, buffer, {
+    access: "public",
+    contentType: isImage ? `image/${ext === "jpg" ? "jpeg" : ext}` : undefined,
+  });
+
+  if (isImage) {
     const metadata = await sharp(buffer).metadata();
-    const width = metadata.width || 300;
-    const height = metadata.height || 200;
+    const origWidth = metadata.width || 300;
+    const origHeight = metadata.height || 200;
 
-    const thumbFilename = `${id}_thumb${ext}`;
-    const thumbPath = path.join(UPLOAD_DIR, thumbFilename);
-
-    await sharp(buffer)
+    // Generate and upload thumbnail
+    const thumbBuffer = await sharp(buffer)
       .resize(600, 600, { fit: "inside", withoutEnlargement: true })
-      .toFile(thumbPath);
+      .toBuffer();
+
+    const thumbBlob = await put(`uploads/${id}_thumb.${ext}`, thumbBuffer, {
+      access: "public",
+      contentType: `image/${ext === "jpg" ? "jpeg" : ext}`,
+    });
 
     return {
-      filePath: `/uploads/${filename}`,
-      thumbnailPath: `/uploads/${thumbFilename}`,
-      width: Math.min(width, 300),
-      height: Math.min(width, 300) * (height / width),
+      filePath: blob.url,
+      thumbnailPath: thumbBlob.url,
+      width: Math.min(origWidth, 300),
+      height: Math.min(origWidth, 300) * (origHeight / origWidth),
     };
   }
 
-  return { filePath: `/uploads/${filename}`, thumbnailPath: null, width: 250, height: 80 };
+  return { filePath: blob.url, thumbnailPath: null, width: 250, height: 80 };
 }
 
-export async function deleteFile(filePath: string) {
-  const fullPath = path.join(process.cwd(), "public", filePath);
+export async function deleteFile(fileUrl: string) {
   try {
-    await fs.unlink(fullPath);
+    if (fileUrl.includes("blob.vercel-storage")) {
+      await del(fileUrl);
+    }
   } catch {
     // File may already be deleted
   }

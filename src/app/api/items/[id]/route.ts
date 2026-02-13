@@ -35,14 +35,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Delete associated files
-  if (item.type === "image" || item.type === "file" || item.type === "video") {
-    if (item.content.startsWith("/uploads/")) {
-      await deleteFile(item.content);
-    }
-    if (item.thumbnailPath?.startsWith("/uploads/")) {
-      await deleteFile(item.thumbnailPath);
-    }
+  // Delete associated files from Vercel Blob
+  if (item.content) {
+    await deleteFile(item.content);
+  }
+  if (item.thumbnailPath) {
+    await deleteFile(item.thumbnailPath);
   }
 
   await prisma.item.delete({ where: { id } });

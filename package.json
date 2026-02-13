@@ -9,11 +9,13 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "rm -f prisma/dev.db && prisma db push && tsx prisma/seed.ts",
+    "db:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "@vercel/blob": "^2.2.0",
+    "@vercel/postgres": "^0.10.0",
     "nanoid": "^5.1.6",
     "next": "16.1.6",
     "open-graph-scraper": "^6.11.0",
