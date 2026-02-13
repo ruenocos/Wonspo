@@ -97,7 +97,7 @@ export function Canvas() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-hidden relative"
+      className="w-full h-full overflow-hidden relative canvas-dots"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}

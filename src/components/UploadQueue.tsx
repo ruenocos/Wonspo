@@ -8,7 +8,7 @@ export function UploadQueue() {
   if (uploads.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 right-6 z-50 w-72 flex flex-col gap-2">
+    <div className="fixed bottom-4 right-4 z-50 w-64 flex flex-col gap-2">
       {uploads.map((task) => (
         <div
           key={task.id}

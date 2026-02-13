@@ -7,6 +7,21 @@ interface ItemCardProps {
   item: ItemData;
 }
 
+function formatBytes(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function parseMeta(item: ItemData) {
+  try {
+    return item.metadata ? JSON.parse(item.metadata) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function ItemCard({ item }: ItemCardProps) {
   const { removeItem } = useAppStore();
 
@@ -43,23 +58,34 @@ export function ItemCard({ item }: ItemCardProps) {
 
 function ImageCard({ item }: { item: ItemData }) {
   const src = item.thumbnailPath || item.content;
+  const meta = parseMeta(item);
+  const size = formatBytes(meta.size);
+  const dims = meta.originalWidth && meta.originalHeight
+    ? `${meta.originalWidth} x ${meta.originalHeight}`
+    : null;
+  const ext = meta.originalName?.split(".").pop()?.toUpperCase() || "";
+
+  const info = [ext, dims, size].filter(Boolean).join(" · ");
+
   return (
-    <img
-      src={src}
-      alt={item.title || "Image"}
-      className="w-full h-auto object-cover"
-      draggable={false}
-    />
+    <div>
+      <img
+        src={src}
+        alt={item.title || "Image"}
+        className="w-full h-auto object-cover"
+        draggable={false}
+      />
+      {info && (
+        <div className="px-3 py-2">
+          <p className="text-[11px] text-zinc-400 truncate">{info}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
 function LinkCard({ item }: { item: ItemData }) {
-  let og: { title?: string; description?: string; image?: string; favicon?: string; url?: string } = {};
-  try {
-    og = item.metadata ? JSON.parse(item.metadata) : {};
-  } catch {
-    // ignore
-  }
+  const og = parseMeta(item);
 
   return (
     <div className="flex flex-col">
@@ -87,7 +113,7 @@ function LinkCard({ item }: { item: ItemData }) {
           </span>
         </div>
         <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2">
-          {og.title || item.title || item.content}
+          {og.title || item.content}
         </h3>
         {og.description && (
           <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1">
@@ -100,14 +126,26 @@ function LinkCard({ item }: { item: ItemData }) {
 }
 
 function VideoCard({ item }: { item: ItemData }) {
+  const meta = parseMeta(item);
+  const originalUrl = meta.originalUrl || item.content;
+  let source = "";
+  try { source = new URL(originalUrl).hostname; } catch { /* */ }
+
   return (
-    <div className="aspect-video">
-      <iframe
-        src={item.content}
-        className="w-full h-full"
-        allowFullScreen
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      />
+    <div>
+      <div className="aspect-video">
+        <iframe
+          src={item.content}
+          className="w-full h-full"
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        />
+      </div>
+      {source && (
+        <div className="px-3 py-2">
+          <p className="text-[11px] text-zinc-400 truncate">{source}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,6 +161,7 @@ function TextCard({ item }: { item: ItemData }) {
 }
 
 function FileCard({ item }: { item: ItemData }) {
+  const meta = parseMeta(item);
   return (
     <div className="p-4 flex items-center gap-3">
       <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 text-lg">
@@ -132,19 +171,7 @@ function FileCard({ item }: { item: ItemData }) {
         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
           {item.title || "File"}
         </p>
-        <p className="text-xs text-zinc-400">
-          {(() => {
-            try {
-              const meta = JSON.parse(item.metadata || "{}");
-              const bytes = meta.size || 0;
-              if (bytes < 1024) return `${bytes} B`;
-              if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-              return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-            } catch {
-              return "";
-            }
-          })()}
-        </p>
+        <p className="text-xs text-zinc-400">{formatBytes(meta.size)}</p>
       </div>
     </div>
   );

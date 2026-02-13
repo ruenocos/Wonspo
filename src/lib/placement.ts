@@ -5,7 +5,7 @@ interface Rect {
   height: number;
 }
 
-const GAP = 20;
+const GAP = 24;
 
 function rectsOverlap(a: Rect, b: Rect): boolean {
   return !(
@@ -38,20 +38,21 @@ export function findNonOverlappingPosition(
     return { x: candidate.x, y: candidate.y };
   }
 
-  // Spiral search
-  const step = 40;
+  // Spiral search — step must be large enough to clear the item
+  const stepX = width + GAP;
+  const stepY = height + GAP;
   let dx = 0;
   let dy = 0;
   let segmentLength = 1;
   let segmentPassed = 0;
   let direction = 0; // 0=right, 1=down, 2=left, 3=up
 
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 200; i++) {
     switch (direction) {
-      case 0: dx += step; break;
-      case 1: dy += step; break;
-      case 2: dx -= step; break;
-      case 3: dy -= step; break;
+      case 0: dx += stepX; break;
+      case 1: dy += stepY; break;
+      case 2: dx -= stepX; break;
+      case 3: dy -= stepY; break;
     }
     segmentPassed++;
 
@@ -73,8 +74,47 @@ export function findNonOverlappingPosition(
     }
   }
 
-  // Fallback: offset by index
-  return { x: centerX - width / 2 + Math.random() * 100, y: centerY - height / 2 + Math.random() * 100 };
+  // Fallback
+  return {
+    x: centerX - width / 2 + Math.random() * 100,
+    y: centerY - height / 2 + Math.random() * 100,
+  };
+}
+
+export function computeTidyLayout(
+  items: { id: string; width: number; height: number }[],
+  centerX: number,
+  centerY: number
+): { id: string; posX: number; posY: number }[] {
+  if (items.length === 0) return [];
+
+  const cols = Math.max(1, Math.ceil(Math.sqrt(items.length)));
+  const colWidth = 320;
+  const rowGap = GAP;
+  const colGap = GAP;
+
+  const totalWidth = cols * colWidth + (cols - 1) * colGap;
+  const startX = centerX - totalWidth / 2;
+
+  // Arrange in columns, top-to-bottom
+  const colHeights = new Array(cols).fill(0);
+  const result: { id: string; posX: number; posY: number }[] = [];
+
+  for (const item of items) {
+    // Find shortest column
+    let minCol = 0;
+    for (let c = 1; c < cols; c++) {
+      if (colHeights[c] < colHeights[minCol]) minCol = c;
+    }
+
+    const x = startX + minCol * (colWidth + colGap);
+    const y = centerY - 200 + colHeights[minCol];
+
+    result.push({ id: item.id, posX: x, posY: y });
+    colHeights[minCol] += item.height + rowGap;
+  }
+
+  return result;
 }
 
 export function nudgeToNonOverlapping(
@@ -87,7 +127,7 @@ export function nudgeToNonOverlapping(
     .map((i) => ({ x: i.x, y: i.y, width: i.width, height: i.height }));
 
   if (!hasCollision(movedRect, others)) {
-    return null; // No nudge needed
+    return null;
   }
 
   return findNonOverlappingPosition(

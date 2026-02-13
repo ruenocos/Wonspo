@@ -1,11 +1,46 @@
 "use client";
 
+import { useCallback } from "react";
 import { useTheme } from "./ThemeProvider";
 import { useAppStore } from "@/lib/store";
+import { computeTidyLayout } from "@/lib/placement";
 
 export function Toolbar() {
   const { theme, toggleTheme } = useTheme();
-  const { zoom, setZoom, freeformMode, toggleFreeformMode } = useAppStore();
+  const { zoom, setZoom, freeformMode, toggleFreeformMode, items, updateItem, panX, panY } = useAppStore();
+
+  const handleTidyToggle = useCallback(async () => {
+    const wasFreeform = freeformMode;
+    toggleFreeformMode();
+
+    // When switching TO tidy mode, rearrange items
+    if (wasFreeform && items.length > 0) {
+      const cx = (window.innerWidth / 2 - panX) / zoom;
+      const cy = (window.innerHeight / 2 - panY) / zoom;
+
+      const layout = computeTidyLayout(
+        items.map((i) => ({ id: i.id, width: i.width, height: i.height })),
+        cx,
+        cy
+      );
+
+      // Update local state immediately
+      for (const pos of layout) {
+        updateItem(pos.id, { posX: pos.posX, posY: pos.posY });
+      }
+
+      // Batch save to server
+      await Promise.all(
+        layout.map((pos) =>
+          fetch(`/api/items/${pos.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ posX: pos.posX, posY: pos.posY }),
+          })
+        )
+      );
+    }
+  }, [freeformMode, toggleFreeformMode, items, updateItem, panX, panY, zoom]);
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-xl">
@@ -47,13 +82,13 @@ export function Toolbar() {
 
       {/* Freeform mode toggle */}
       <button
-        onClick={toggleFreeformMode}
+        onClick={handleTidyToggle}
         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
           freeformMode
             ? "bg-indigo-500 text-white"
             : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
         }`}
-        title={freeformMode ? "Switch to no-overlap mode" : "Switch to freeform mode"}
+        title={freeformMode ? "Switch to tidy grid layout" : "Switch to freeform placement"}
       >
         {freeformMode ? "Freeform" : "Tidy"}
       </button>

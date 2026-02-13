@@ -94,15 +94,29 @@ export function ItemDetailModal() {
 
         {/* Metadata + Note */}
         <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
-          {item.title && (
+          {item.title && item.type !== "link" && (
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
               {item.title}
             </h2>
           )}
 
           <div className="flex flex-wrap gap-3 text-xs text-zinc-400 mb-4">
-            <span>Type: {item.type}</span>
-            <span>Added: {new Date(item.createdAt).toLocaleDateString()}</span>
+            <span>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</span>
+            <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+            {(item.type === "image" || item.type === "file") && (() => {
+              try {
+                const meta = JSON.parse(item.metadata || "{}");
+                const parts: string[] = [];
+                if (meta.originalWidth && meta.originalHeight) {
+                  parts.push(`${meta.originalWidth} x ${meta.originalHeight}`);
+                }
+                if (meta.size) {
+                  const b = meta.size;
+                  parts.push(b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${(b / 1024).toFixed(1)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`);
+                }
+                return parts.length > 0 ? <span>{parts.join(" · ")}</span> : null;
+              } catch { return null; }
+            })()}
             {item.type === "link" && (
               <a
                 href={item.content}

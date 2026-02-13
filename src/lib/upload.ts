@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 export async function saveFile(
   buffer: Buffer,
   originalName: string
-): Promise<{ filePath: string; thumbnailPath: string | null; width: number; height: number }> {
+): Promise<{ filePath: string; thumbnailPath: string | null; width: number; height: number; originalWidth: number; originalHeight: number }> {
   const ext = originalName.split(".").pop()?.toLowerCase() || "bin";
   const id = nanoid(12);
   const filename = `${id}.${ext}`;
@@ -33,6 +33,8 @@ export async function saveFile(
       thumbnailPath: blob.url,
       width: 300,
       height: 200,
+      originalWidth: 300,
+      originalHeight: 200,
     };
   }
 
@@ -56,10 +58,12 @@ export async function saveFile(
       thumbnailPath: thumbBlob.url,
       width: Math.min(origWidth, 300),
       height: Math.min(origWidth, 300) * (origHeight / origWidth),
+      originalWidth: origWidth,
+      originalHeight: origHeight,
     };
   }
 
-  return { filePath: blob.url, thumbnailPath: null, width: 250, height: 80 };
+  return { filePath: blob.url, thumbnailPath: null, width: 250, height: 80, originalWidth: 0, originalHeight: 0 };
 }
 
 export async function deleteFile(fileUrl: string) {

@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { filePath, thumbnailPath, width, height } = await saveFile(
+    const { filePath, thumbnailPath, width, height, originalWidth, originalHeight } = await saveFile(
       buffer,
       file.name
     );
@@ -80,6 +80,8 @@ export async function POST(req: NextRequest) {
           originalName: file.name,
           size: file.size,
           mimeType: file.type,
+          originalWidth,
+          originalHeight,
         }),
         posX: pos.x,
         posY: pos.y,

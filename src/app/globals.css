@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #fafafa;
   --foreground: #171717;
@@ -49,4 +51,18 @@ body {
 
 .animate-spin {
   animation: spin 0.7s linear infinite;
+}
+
+.dark .canvas-dots {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+  background-size: 24px 24px, 100% 100%;
+}
+
+.canvas-dots {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.07) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.03) 0%, transparent 70%);
+  background-size: 24px 24px, 100% 100%;
 }
