@@ -27,3 +27,26 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #52525b transparent;
 }
+
+.animate-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 0.7s linear infinite;
+}

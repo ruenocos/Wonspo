@@ -2,6 +2,7 @@
 
 import { useCallback, ReactNode } from "react";
 import { useAppStore } from "@/lib/store";
+import { nanoid } from "nanoid";
 
 interface DropZoneProps {
   children: ReactNode;
@@ -18,8 +19,11 @@ function isUrl(text: string): boolean {
 }
 
 export function DropZone({ children, boardId }: DropZoneProps) {
-  const { panX, panY, zoom, addItem, isDraggingOver, setIsDraggingOver } =
-    useAppStore();
+  const {
+    panX, panY, zoom, addItem,
+    isDraggingOver, setIsDraggingOver,
+    addUpload, updateUpload, removeUpload,
+  } = useAppStore();
 
   const getViewportCenter = useCallback(() => {
     const cx = (window.innerWidth / 2 - panX) / zoom;
@@ -29,55 +33,98 @@ export function DropZone({ children, boardId }: DropZoneProps) {
 
   const handleUpload = useCallback(
     async (file: File, cx: number, cy: number) => {
-      const formData = new FormData();
-      formData.append("file", file);
+      const taskId = nanoid(8);
+      addUpload({ id: taskId, name: file.name, status: "uploading" });
 
-      const res = await fetch(
-        `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
-        { method: "POST", body: formData }
-      );
-      if (res.ok) {
-        const item = await res.json();
-        addItem(item);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        updateUpload(taskId, { status: "processing" });
+        const res = await fetch(
+          `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
+          { method: "POST", body: formData }
+        );
+
+        if (res.ok) {
+          const item = await res.json();
+          addItem(item);
+          updateUpload(taskId, { status: "done" });
+        } else {
+          updateUpload(taskId, { status: "error" });
+        }
+      } catch {
+        updateUpload(taskId, { status: "error" });
       }
+
+      setTimeout(() => removeUpload(taskId), 2000);
     },
-    [boardId, addItem]
+    [boardId, addItem, addUpload, updateUpload, removeUpload]
   );
 
   const handleLink = useCallback(
     async (url: string, cx: number, cy: number) => {
-      const res = await fetch(
-        `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "link", content: url }),
+      const taskId = nanoid(8);
+      const displayName = (() => {
+        try { return new URL(url).hostname; } catch { return url.slice(0, 30); }
+      })();
+      addUpload({ id: taskId, name: displayName, status: "processing" });
+
+      try {
+        const res = await fetch(
+          `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "link", content: url }),
+          }
+        );
+
+        if (res.ok) {
+          const item = await res.json();
+          addItem(item);
+          updateUpload(taskId, { status: "done" });
+        } else {
+          updateUpload(taskId, { status: "error" });
         }
-      );
-      if (res.ok) {
-        const item = await res.json();
-        addItem(item);
+      } catch {
+        updateUpload(taskId, { status: "error" });
       }
+
+      setTimeout(() => removeUpload(taskId), 2000);
     },
-    [boardId, addItem]
+    [boardId, addItem, addUpload, updateUpload, removeUpload]
   );
 
   const handleText = useCallback(
     async (text: string, cx: number, cy: number) => {
-      const res = await fetch(
-        `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "text", content: text }),
+      const taskId = nanoid(8);
+      addUpload({ id: taskId, name: "Text snippet", status: "processing" });
+
+      try {
+        const res = await fetch(
+          `/api/items?boardId=${boardId}&cx=${cx}&cy=${cy}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "text", content: text }),
+          }
+        );
+
+        if (res.ok) {
+          const item = await res.json();
+          addItem(item);
+          updateUpload(taskId, { status: "done" });
+        } else {
+          updateUpload(taskId, { status: "error" });
         }
-      );
-      if (res.ok) {
-        const item = await res.json();
-        addItem(item);
+      } catch {
+        updateUpload(taskId, { status: "error" });
       }
+
+      setTimeout(() => removeUpload(taskId), 2000);
     },
-    [boardId, addItem]
+    [boardId, addItem, addUpload, updateUpload, removeUpload]
   );
 
   const onDrop = useCallback(
@@ -87,15 +134,13 @@ export function DropZone({ children, boardId }: DropZoneProps) {
 
       const { cx, cy } = getViewportCenter();
 
-      // Check for files
       if (e.dataTransfer.files.length > 0) {
-        for (const file of Array.from(e.dataTransfer.files)) {
-          await handleUpload(file, cx, cy);
-        }
+        const files = Array.from(e.dataTransfer.files);
+        // Upload all files concurrently
+        await Promise.all(files.map((file) => handleUpload(file, cx, cy)));
         return;
       }
 
-      // Check for URL text
       const text =
         e.dataTransfer.getData("text/uri-list") ||
         e.dataTransfer.getData("text/plain");
@@ -131,16 +176,13 @@ export function DropZone({ children, boardId }: DropZoneProps) {
     async (e: React.ClipboardEvent) => {
       const { cx, cy } = getViewportCenter();
 
-      // Check for files in clipboard
       if (e.clipboardData.files.length > 0) {
         e.preventDefault();
-        for (const file of Array.from(e.clipboardData.files)) {
-          await handleUpload(file, cx, cy);
-        }
+        const files = Array.from(e.clipboardData.files);
+        await Promise.all(files.map((file) => handleUpload(file, cx, cy)));
         return;
       }
 
-      // Check for text/URL
       const text = e.clipboardData.getData("text/plain");
       if (text) {
         e.preventDefault();

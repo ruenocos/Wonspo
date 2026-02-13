@@ -10,16 +10,33 @@ export async function saveFile(
   const id = nanoid(12);
   const filename = `${id}.${ext}`;
 
-  const imageExts = ["jpg", "jpeg", "png", "gif", "webp"];
-  const isImage = imageExts.includes(ext);
+  const rasterImageExts = ["jpg", "jpeg", "png", "gif", "webp"];
+  const isSvg = ext === "svg";
+  const isRasterImage = rasterImageExts.includes(ext);
+  const isImage = isRasterImage || isSvg;
+
+  const contentTypeMap: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+  };
 
   // Upload original file to Vercel Blob
   const blob = await put(`uploads/${filename}`, buffer, {
     access: "public",
-    contentType: isImage ? `image/${ext === "jpg" ? "jpeg" : ext}` : undefined,
+    contentType: contentTypeMap[ext] || undefined,
   });
 
-  if (isImage) {
+  // SVGs: upload as-is, no thumbnail processing (sharp can't resize SVGs well)
+  if (isSvg) {
+    return {
+      filePath: blob.url,
+      thumbnailPath: blob.url,
+      width: 300,
+      height: 200,
+    };
+  }
+
+  if (isRasterImage) {
     const metadata = await sharp(buffer).metadata();
     const origWidth = metadata.width || 300;
     const origHeight = metadata.height || 200;
@@ -31,7 +48,7 @@ export async function saveFile(
 
     const thumbBlob = await put(`uploads/${id}_thumb.${ext}`, thumbBuffer, {
       access: "public",
-      contentType: `image/${ext === "jpg" ? "jpeg" : ext}`,
+      contentType: contentTypeMap[ext],
     });
 
     return {

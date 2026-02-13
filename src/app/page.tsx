@@ -7,6 +7,7 @@ import { Canvas } from "@/components/Canvas";
 import { Toolbar } from "@/components/Toolbar";
 import { Sidebar } from "@/components/Sidebar";
 import { ItemDetailModal } from "@/components/ItemDetailModal";
+import { UploadQueue } from "@/components/UploadQueue";
 import { Toaster } from "react-hot-toast";
 
 export default function Home() {
@@ -46,6 +47,7 @@ export default function Home() {
       <Sidebar />
       <Toolbar />
       <ItemDetailModal />
+      <UploadQueue />
       <Toaster
         position="bottom-right"
         toastOptions={{
