@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 
+export type LayoutMode = "auto" | "tidy" | "freeform";
+
 export interface ItemData {
   id: string;
   boardId: string;
@@ -55,8 +57,8 @@ interface AppState {
   setActiveBoardId: (id: string) => void;
 
   // UI
-  freeformMode: boolean;
-  toggleFreeformMode: () => void;
+  layoutMode: LayoutMode;
+  setLayoutMode: (mode: LayoutMode) => void;
   selectedItemId: string | null;
   setSelectedItemId: (id: string | null) => void;
   isDraggingOver: boolean;
@@ -90,8 +92,8 @@ export const useAppStore = create<AppState>((set) => ({
   activeBoardId: "default-board",
   setActiveBoardId: (id) => set({ activeBoardId: id }),
 
-  freeformMode: false,
-  toggleFreeformMode: () => set((s) => ({ freeformMode: !s.freeformMode })),
+  layoutMode: "auto",
+  setLayoutMode: (mode) => set({ layoutMode: mode }),
   selectedItemId: null,
   setSelectedItemId: (id) => set({ selectedItemId: id }),
   isDraggingOver: false,

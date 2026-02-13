@@ -2,45 +2,51 @@
 
 import { useCallback } from "react";
 import { useTheme } from "./ThemeProvider";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, LayoutMode } from "@/lib/store";
 import { computeTidyLayout } from "@/lib/placement";
+
+const MODES: { key: LayoutMode; label: string }[] = [
+  { key: "auto", label: "Auto" },
+  { key: "tidy", label: "Tidy" },
+  { key: "freeform", label: "Free" },
+];
 
 export function Toolbar() {
   const { theme, toggleTheme } = useTheme();
-  const { zoom, setZoom, freeformMode, toggleFreeformMode, items, updateItem, panX, panY } = useAppStore();
+  const { zoom, setZoom, layoutMode, setLayoutMode, items, updateItem, panX, panY } =
+    useAppStore();
 
-  const handleTidyToggle = useCallback(async () => {
-    const wasFreeform = freeformMode;
-    toggleFreeformMode();
+  const handleModeChange = useCallback(
+    async (mode: LayoutMode) => {
+      setLayoutMode(mode);
 
-    // When switching TO tidy mode, rearrange items
-    if (wasFreeform && items.length > 0) {
-      const cx = (window.innerWidth / 2 - panX) / zoom;
-      const cy = (window.innerHeight / 2 - panY) / zoom;
+      if (mode === "tidy" && items.length > 0) {
+        const cx = (window.innerWidth / 2 - panX) / zoom;
+        const cy = (window.innerHeight / 2 - panY) / zoom;
 
-      const layout = computeTidyLayout(
-        items.map((i) => ({ id: i.id, width: i.width, height: i.height })),
-        cx,
-        cy
-      );
+        const layout = computeTidyLayout(
+          items.map((i) => ({ id: i.id, width: i.width, height: i.height })),
+          cx,
+          cy
+        );
 
-      // Update local state immediately
-      for (const pos of layout) {
-        updateItem(pos.id, { posX: pos.posX, posY: pos.posY });
+        for (const pos of layout) {
+          updateItem(pos.id, { posX: pos.posX, posY: pos.posY });
+        }
+
+        await Promise.all(
+          layout.map((pos) =>
+            fetch(`/api/items/${pos.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ posX: pos.posX, posY: pos.posY }),
+            })
+          )
+        );
       }
-
-      // Batch save to server
-      await Promise.all(
-        layout.map((pos) =>
-          fetch(`/api/items/${pos.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ posX: pos.posX, posY: pos.posY }),
-          })
-        )
-      );
-    }
-  }, [freeformMode, toggleFreeformMode, items, updateItem, panX, panY, zoom]);
+    },
+    [setLayoutMode, items, updateItem, panX, panY, zoom]
+  );
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-xl">
@@ -80,18 +86,22 @@ export function Toolbar() {
 
       <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-600" />
 
-      {/* Freeform mode toggle */}
-      <button
-        onClick={handleTidyToggle}
-        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-          freeformMode
-            ? "bg-indigo-500 text-white"
-            : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
-        }`}
-        title={freeformMode ? "Switch to tidy grid layout" : "Switch to freeform placement"}
-      >
-        {freeformMode ? "Freeform" : "Tidy"}
-      </button>
+      {/* Layout mode segmented control */}
+      <div className="flex items-center bg-zinc-100 dark:bg-zinc-700 rounded-full p-0.5">
+        {MODES.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => handleModeChange(m.key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              layoutMode === m.key
+                ? "bg-white dark:bg-zinc-500 text-zinc-900 dark:text-white shadow-sm"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

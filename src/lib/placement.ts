@@ -88,33 +88,36 @@ export function computeTidyLayout(
 ): { id: string; posX: number; posY: number }[] {
   if (items.length === 0) return [];
 
-  const cols = Math.max(1, Math.ceil(Math.sqrt(items.length)));
-  const colWidth = 320;
-  const rowGap = GAP;
+  // Masonry layout: pick column count based on item count
+  const cols = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(items.length))));
+  const colWidth = 300;
   const colGap = GAP;
 
   const totalWidth = cols * colWidth + (cols - 1) * colGap;
   const startX = centerX - totalWidth / 2;
 
-  // Arrange in columns, top-to-bottom
+  // First pass: compute column heights to find total height for centering
   const colHeights = new Array(cols).fill(0);
-  const result: { id: string; posX: number; posY: number }[] = [];
+  const assignments: { col: number; y: number }[] = [];
 
   for (const item of items) {
-    // Find shortest column
     let minCol = 0;
     for (let c = 1; c < cols; c++) {
       if (colHeights[c] < colHeights[minCol]) minCol = c;
     }
-
-    const x = startX + minCol * (colWidth + colGap);
-    const y = centerY - 200 + colHeights[minCol];
-
-    result.push({ id: item.id, posX: x, posY: y });
-    colHeights[minCol] += item.height + rowGap;
+    assignments.push({ col: minCol, y: colHeights[minCol] });
+    colHeights[minCol] += item.height + GAP;
   }
 
-  return result;
+  // Center vertically based on tallest column
+  const maxHeight = Math.max(...colHeights);
+  const startY = centerY - maxHeight / 2;
+
+  return items.map((item, i) => ({
+    id: item.id,
+    posX: startX + assignments[i].col * (colWidth + colGap),
+    posY: startY + assignments[i].y,
+  }));
 }
 
 export function nudgeToNonOverlapping(
